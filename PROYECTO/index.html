@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Convertidor de temperatura con ML</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f2f5f9; margin: 0;
+           display: flex; min-height: 100vh; align-items: center; justify-content: center; }
+    .card { background: #fff; padding: 2rem; border-radius: 12px; width: 100%;
+            max-width: 380px; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+    h1 { font-size: 1.3rem; margin-top: 0; }
+    label { display: block; margin-bottom: .4rem; font-weight: 600; }
+    input { width: 100%; padding: .6rem; font-size: 1rem; box-sizing: border-box;
+            border: 1px solid #c8d0da; border-radius: 6px; }
+    button { margin-top: 1rem; width: 100%; padding: .7rem; font-size: 1rem;
+             background: #2563eb; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    #salida { margin-top: 1.2rem; padding: 1rem; border-radius: 6px; text-align: center;
+              font-size: 1.1rem; display: none; }
+    .ok { background: #ecfdf5; }
+    .err { background: #fef2f2; color: #b91c1c; }
+    small { color: #6b7280; display: block; margin-top: 1rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Celsius → Fahrenheit</h1>
+    <form id="formulario">
+      <label for="celsius">Temperatura en °C</label>
+      <input id="celsius" type="number" step="any" required autofocus>
+      <button id="boton" type="submit" disabled>Cargando modelo…</button>
+    </form>
+    <div id="salida"></div>
+    <small>Predicción hecha en tu navegador con una red neuronal (TensorFlow.js).</small>
+  </div>
+
+  <script>
+    const CERO_ABSOLUTO_C = -273.15;
+    const boton = document.getElementById("boton");
+    const salida = document.getElementById("salida");
+    let modelo = null;
+
+    function mostrar(texto, clase) {
+      salida.className = clase;
+      salida.innerHTML = texto;
+      salida.style.display = "block";
+    }
+
+    // El modelo (model.json + .bin) se descarga desde este mismo servidor
+    tf.loadLayersModel("modelo_tfjs/model.json")
+      .then(m => {
+        modelo = m;
+        boton.disabled = false;
+        boton.textContent = "Predecir";
+      })
+      .catch(e => {
+        console.error(e);
+        boton.textContent = "Error al cargar el modelo";
+        mostrar("No se pudo cargar el modelo. Revisa que la carpeta modelo_tfjs esté en el servidor.", "err");
+      });
+
+    document.getElementById("formulario").addEventListener("submit", ev => {
+      ev.preventDefault();
+      const c = parseFloat(document.getElementById("celsius").value.replace(",", "."));
+      if (!Number.isFinite(c)) return mostrar("Ingresa un número válido.", "err");
+      if (c < CERO_ABSOLUTO_C) return mostrar("No puede ser menor al cero absoluto (-273.15 °C).", "err");
+
+      const f = tf.tidy(() => modelo.predict(tf.tensor2d([[c]])).dataSync()[0]);
+      mostrar(`${c} °C = <strong>${f.toFixed(2)} °F</strong>`, "ok");
+    });
+  </script>
+</body>
+</html>
